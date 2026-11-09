@@ -1,4 +1,5 @@
 
+import os
 from pathlib import Path
 
 # Caminho principal do projeto
@@ -112,3 +113,8 @@ STATICFILES_DIRS = [
 
 # Tipo padrão de chave primária
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# Chave da API do Google Maps (Maps Embed API).
+# Cole a sua chave aqui ou defina a variável de ambiente GOOGLE_MAPS_API_KEY.
+GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "COLE_SUA_CHAVE_AQUI")

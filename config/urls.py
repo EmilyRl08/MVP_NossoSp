@@ -32,7 +32,18 @@ urlpatterns = [
     ),
     path("excluir-noticia/<int:id>/", views.excluir_noticia, name="excluir_noticia"),
 
+    path(
+        "decidir-solicitacao/<int:id>/<str:acao>/",
+        views.decidir_solicitacao,
+        name="decidir_solicitacao"
+    ),
+
     # LEITOR
+    path(
+        "solicitar-jornalista/",
+        views.solicitar_jornalista,
+        name="solicitar_jornalista"
+    ),
     path("leitor/", views.portal_leitor, name="portal_leitor"),
     path(
     "alternar-favorito/<int:id>/",

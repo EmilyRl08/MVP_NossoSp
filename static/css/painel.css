@@ -1009,3 +1009,61 @@ a {
 .publication-delete:hover {
     color: #A23B2D;
 }
+
+
+/* PEDIDOS DE JORNALISTA */
+
+.solicitacao-item {
+    padding: 22px 0;
+    border-bottom: 1px solid rgba(38, 39, 34, 0.12);
+}
+
+.solicitacao-topo {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.solicitacao-topo h3 {
+    font-family: "DM Serif Display", serif;
+    font-size: 19px;
+    font-weight: 400;
+}
+
+.solicitacao-texto {
+    margin-top: 8px;
+    font-size: 13px;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+}
+
+.solicitacao-acoes {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+}
+
+.solicitacao-acoes form {
+    margin: 0;
+}
+
+.solicitacao-form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.solicitacao-form input {
+    padding: 8px 10px;
+    border: 1px solid rgba(38, 39, 34, 0.25);
+    border-radius: 3px;
+    background: transparent;
+    font-family: inherit;
+    font-size: 12px;
+}

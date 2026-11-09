@@ -34,8 +34,12 @@
                 <span>03</span> Aprovar notícias
             </a>
 
+            <a href="#solicitacoes" class="menu-item">
+                <span>04</span> Pedidos de jornalista
+            </a>
+
             <a href="{% url 'explorar' %}" class="menu-item">
-                <span>04</span> Explorar portal
+                <span>05</span> Explorar portal
             </a>
 
             <a href="{% url 'logout' %}" class="menu-item sair">
@@ -205,6 +209,97 @@
 
             </div>
 
+        </section>
+
+        <section class="publications" id="solicitacoes">
+
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">NOVOS JORNALISTAS</p>
+                    <h2>Pedidos de jornalista.</h2>
+                    <p class="section-description">
+                        Leia o currículo, marque a entrevista e, ao aceitar,
+                        o perfil do leitor vira jornalista automaticamente.
+                        {% if total_solicitacoes %}
+                            ({{ total_solicitacoes }} em andamento)
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+
+            <div class="publication-list">
+
+                {% for s in solicitacoes %}
+                    <article class="solicitacao-item">
+
+                        <div class="solicitacao-topo">
+                            <div>
+                                <h3>{{ s.leitor.nome }}</h3>
+                                <span class="publication-date">
+                                    {{ s.leitor.email }}
+                                    · enviado em {{ s.data_criacao|date:"d/m/Y" }}
+                                </span>
+                            </div>
+
+                            <span class="publication-status {% if s.status == 'aceita' %}published{% elif s.status == 'recusada' %}denied{% else %}pending{% endif %}">
+                                {{ s.get_status_display }}
+                            </span>
+                        </div>
+
+                        <p class="solicitacao-texto"><strong>Capacidades:</strong> {{ s.capacidades|linebreaksbr }}</p>
+
+                        {% if s.experiencia %}
+                            <p class="solicitacao-texto"><strong>Experiência:</strong> {{ s.experiencia|linebreaksbr }}</p>
+                        {% endif %}
+
+                        <p class="solicitacao-texto">
+                            <a href="{{ s.curriculo.url }}" target="_blank" class="cta-link">Abrir currículo <span>↗</span></a>
+                        </p>
+
+                        {% if s.data_entrevista %}
+                            <p class="solicitacao-texto">
+                                <strong>Entrevista:</strong>
+                                {{ s.data_entrevista|date:"d/m/Y \à\s H:i" }}
+                                {% if s.detalhes_entrevista %}· {{ s.detalhes_entrevista }}{% endif %}
+                            </p>
+                        {% endif %}
+
+                        {% if s.status == 'pendente' or s.status == 'entrevista' %}
+                            <div class="solicitacao-acoes">
+
+                                <form action="{% url 'decidir_solicitacao' s.id 'entrevista' %}" method="POST" class="solicitacao-form">
+                                    {% csrf_token %}
+                                    <input type="datetime-local" name="data_entrevista" required>
+                                    <input type="text" name="detalhes_entrevista" maxlength="250" placeholder="Local ou link da entrevista">
+                                    <button type="submit" class="action-button action-approve">
+                                        {% if s.status == 'entrevista' %}Remarcar entrevista{% else %}Marcar entrevista{% endif %}
+                                    </button>
+                                </form>
+
+                                {% if s.status == 'entrevista' %}
+                                    <form action="{% url 'decidir_solicitacao' s.id 'aceitar' %}" method="POST">
+                                        {% csrf_token %}
+                                        <button type="submit" class="action-button action-approve">Aceitar como jornalista</button>
+                                    </form>
+                                {% endif %}
+
+                                <form action="{% url 'decidir_solicitacao' s.id 'recusar' %}" method="POST">
+                                    {% csrf_token %}
+                                    <button type="submit" class="action-button action-deny">Recusar</button>
+                                </form>
+
+                            </div>
+                        {% endif %}
+
+                    </article>
+
+                {% empty %}
+                    <p class="section-description">
+                        Nenhum pedido de jornalista recebido até agora.
+                    </p>
+                {% endfor %}
+
+            </div>
         </section>
 
         <section class="publications" id="publicacoes">

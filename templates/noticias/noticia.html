@@ -84,6 +84,22 @@
                     </div>
                 </div>
 
+                {% if publicacao.local and google_maps_key %}
+                    <div class="mapa-jornalista">
+                        <p class="mapa-titulo">LOCALIZAÇÃO INFORMADA PELO JORNALISTA</p>
+
+                        <iframe
+                            title="Mapa de {{ publicacao.local }}"
+                            src="https://www.google.com/maps/embed/v1/place?key={{ google_maps_key|urlencode }}&q={{ publicacao.local|urlencode }}%2C%20S%C3%A3o%20Paulo%20SP"
+                            loading="lazy"
+                            referrerpolicy="no-referrer-when-downgrade"
+                            allowfullscreen
+                        ></iframe>
+
+                        <p class="mapa-endereco">{{ publicacao.local }}</p>
+                    </div>
+                {% endif %}
+
             </div>
 
             <figure class="imagem-principal">
@@ -165,20 +181,9 @@
                 </p>
             {% endif %}
 
+            {% if pode_comentar %}
             <form class="formulario-comentario" method="POST">
                 {% csrf_token %}
-
-                <label for="nome">Seu nome</label>
-
-                <input
-                    type="text"
-                    id="nome"
-                    name="nome"
-                    maxlength="100"
-                    placeholder="Digite seu nome"
-                    value="{{ nome_leitor|default:'' }}"
-                    required
-                >
 
                 <label for="comentario">Seu comentário</label>
 
@@ -190,17 +195,22 @@
                     required
                 ></textarea>
 
-                {% if leitor_conectado %}
-                    <p class="aviso-conta">
-                        Seu comentário será associado à sua conta do Nosso SP.
-                    </p>
-                {% endif %}
+                <p class="aviso-conta">
+                    Seu comentário será publicado como {{ nome_leitor }}.
+                </p>
 
                 <button type="submit" class="botao-comentar">
                     Enviar comentário
                 </button>
 
             </form>
+            {% else %}
+                <p class="aviso-conta">
+                    <a href="{% url 'login' %}"><strong>Entre na sua conta</strong></a>
+                    ou <a href="{% url 'cadastro_leitor' %}"><strong>cadastre-se</strong></a>
+                    para comentar.
+                </p>
+            {% endif %}
 
             <div class="lista-comentarios">
 

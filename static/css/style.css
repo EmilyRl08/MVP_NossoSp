@@ -663,6 +663,11 @@ img {
     font-weight: 400;
     line-height: 1.12;
     letter-spacing: -0.5px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
 }
 
 .news-card h3 a:hover {

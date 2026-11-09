@@ -2,13 +2,18 @@
 import os
 
 from django.contrib.auth.hashers import check_password, make_password
+from django.conf import settings
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
-from .models import Noticia, Comentario, Leitor
+from .models import Noticia, Comentario, Leitor, SolicitacaoJornalista
 
 EXTENSOES_FOTO = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 TAMANHO_MAXIMO_FOTO = 5 * 1024 * 1024  # 5 MB
+EXTENSOES_CURRICULO = {".pdf", ".doc", ".docx"}
+TAMANHO_MAXIMO_CURRICULO = 5 * 1024 * 1024  # 5 MB
 
 
 # LOGINS TEMPORÁRIOS PARA TESTES
@@ -94,6 +99,10 @@ def login(request):
 
         if leitor and check_password(senha, leitor.senha):
             iniciar_sessao_leitor(request, leitor)
+
+            if leitor.jornalista:
+                return redirect("painel")
+
             return redirect("portal_leitor")
 
         erro = "E-mail ou senha incorretos."
@@ -107,7 +116,9 @@ def login(request):
 
 def iniciar_sessao_leitor(request, leitor):
     request.session.flush()
-    request.session["usuario_tipo"] = "leitor"
+    request.session["usuario_tipo"] = (
+        "jornalista" if leitor.jornalista else "leitor"
+    )
     request.session["usuario_email"] = leitor.email
     request.session["usuario_nome"] = leitor.nome
 
@@ -135,26 +146,21 @@ def noticia(request):
     erro_comentario = ""
 
     if request.method == "POST":
-        nome = request.POST.get("nome", "").strip()
         texto = request.POST.get("comentario", "").strip()
+        nome = request.session.get("usuario_nome", "").strip()
 
-        if not nome or not texto:
-            erro_comentario = "Preencha seu nome e seu comentário."
+        if not usuario_logado(request) and not eh_leitor(request):
+            erro_comentario = "Entre na sua conta para comentar."
 
-        elif len(nome) > 100:
-            erro_comentario = "O nome deve ter no máximo 100 caracteres."
+        elif not texto:
+            erro_comentario = "Escreva seu comentário."
 
         else:
-            email_autor = ""
-
-            if eh_leitor(request):
-                email_autor = request.session.get("usuario_email", "")
-
-            # Comentários são publicados na hora (sem autorização do admin)
+            # O nome vem sempre da conta; o leitor não digita nome.
             Comentario.objects.create(
                 noticia=publicacao,
-                nome=nome,
-                autor_email=email_autor,
+                nome=nome[:100] or "Leitor",
+                autor_email=request.session.get("usuario_email", ""),
                 texto=texto,
                 aprovado=True
             )
@@ -178,7 +184,15 @@ def noticia(request):
             "comentarios": comentarios_publicados,
             "erro_comentario": erro_comentario,
             "comentario_enviado": request.GET.get("enviado") == "1",
+            "google_maps_key": (
+                settings.GOOGLE_MAPS_API_KEY
+                if settings.GOOGLE_MAPS_API_KEY != "COLE_SUA_CHAVE_AQUI"
+                else ""
+            ),
             "leitor_conectado": eh_leitor(request),
+            "pode_comentar": request.session.get("usuario_tipo") in [
+                "leitor", "jornalista", "administrador"
+            ],
             "favorita": publicacao.id in favoritos_ids,
             "nome_leitor": request.session.get("usuario_nome", ""),
         }
@@ -368,12 +382,22 @@ def administracao(request):
 
     pendentes = publicacoes.filter(status="pendente")
 
+    solicitacoes = SolicitacaoJornalista.objects.select_related(
+        "leitor"
+    ).order_by("-data_criacao")
+
+    solicitacoes_abertas = solicitacoes.filter(
+        status__in=["pendente", "entrevista"]
+    )
+
     return render(
         request,
         "noticias/administracao.html",
         {
             "publicacoes": publicacoes,
             "pendentes": pendentes,
+            "solicitacoes": solicitacoes,
+            "total_solicitacoes": solicitacoes_abertas.count(),
             "total_aceitas": publicacoes.filter(status="publicado").count(),
             "total_negadas": publicacoes.filter(status="negado").count(),
             "total_pendentes": pendentes.count(),
@@ -444,6 +468,20 @@ def portal_leitor(request):
     if not eh_leitor(request):
         return redirect("login")
 
+    leitor = Leitor.objects.filter(
+        email__iexact=request.session.get("usuario_email", "")
+    ).first()
+
+    # Se o administrador já aceitou o pedido, o perfil vira jornalista.
+    if leitor and leitor.jornalista:
+        request.session["usuario_tipo"] = "jornalista"
+        return redirect("painel")
+
+    solicitacao = None
+
+    if leitor:
+        solicitacao = leitor.solicitacoes.order_by("-data_criacao").first()
+
     favoritos_ids = request.session.get("favoritos", [])
 
     noticias_salvas = Noticia.objects.filter(
@@ -464,8 +502,106 @@ def portal_leitor(request):
             "usuario_email": request.session.get("usuario_email"),
             "usuario_nome": request.session.get("usuario_nome", "Leitor"),
             "meus_comentarios": meus_comentarios,
+            "conta_cadastrada": leitor is not None,
+            "solicitacao": solicitacao,
+            "erro_solicitacao": request.GET.get("erro_solicitacao", ""),
+            "solicitacao_enviada": request.GET.get("solicitacao") == "1",
         }
     )
+
+
+# PEDIDO PARA VIRAR JORNALISTA — SOMENTE LEITOR
+@require_POST
+def solicitar_jornalista(request):
+    if not eh_leitor(request):
+        return redirect("login")
+
+    leitor = Leitor.objects.filter(
+        email__iexact=request.session.get("usuario_email", "")
+    ).first()
+
+    def voltar_com_erro(mensagem):
+        from urllib.parse import quote
+        return redirect(
+            f"/leitor/?erro_solicitacao={quote(mensagem)}#jornalista"
+        )
+
+    if not leitor:
+        return voltar_com_erro(
+            "Crie uma conta de leitor para enviar sua solicitação."
+        )
+
+    if leitor.solicitacoes.filter(
+        status__in=["pendente", "entrevista"]
+    ).exists():
+        return voltar_com_erro("Você já tem uma solicitação em andamento.")
+
+    capacidades = request.POST.get("capacidades", "").strip()
+    experiencia = request.POST.get("experiencia", "").strip()
+    curriculo = request.FILES.get("curriculo")
+
+    if not capacidades:
+        return voltar_com_erro("Descreva suas capacidades.")
+
+    if not curriculo:
+        return voltar_com_erro("Anexe o seu currículo.")
+
+    extensao = os.path.splitext(curriculo.name)[1].lower()
+
+    if extensao not in EXTENSOES_CURRICULO:
+        return voltar_com_erro("O currículo deve ser PDF, DOC ou DOCX.")
+
+    if curriculo.size > TAMANHO_MAXIMO_CURRICULO:
+        return voltar_com_erro("O currículo deve ter no máximo 5 MB.")
+
+    SolicitacaoJornalista.objects.create(
+        leitor=leitor,
+        capacidades=capacidades,
+        experiencia=experiencia,
+        curriculo=curriculo
+    )
+
+    return redirect("/leitor/?solicitacao=1#jornalista")
+
+
+# DECIDIR SOLICITAÇÃO DE JORNALISTA — SOMENTE ADMINISTRADOR
+@require_POST
+def decidir_solicitacao(request, id, acao):
+    if not eh_administrador(request):
+        return redirecionar_painel(request) if usuario_logado(request) else redirect("login")
+
+    solicitacao = get_object_or_404(SolicitacaoJornalista, id=id)
+
+    if solicitacao.status in ["aceita", "recusada"]:
+        return redirect("/administracao/#solicitacoes")
+
+    if acao == "entrevista":
+        data = parse_datetime(request.POST.get("data_entrevista", ""))
+
+        if data:
+            if timezone.is_naive(data):
+                data = timezone.make_aware(data)
+
+            solicitacao.data_entrevista = data
+            solicitacao.detalhes_entrevista = request.POST.get(
+                "detalhes_entrevista", ""
+            ).strip()[:250]
+            solicitacao.status = "entrevista"
+            solicitacao.save()
+
+    elif acao == "aceitar" and solicitacao.status == "entrevista":
+        solicitacao.status = "aceita"
+        solicitacao.save()
+
+        # O perfil vira jornalista automaticamente.
+        solicitacao.leitor.jornalista = True
+        solicitacao.leitor.save()
+
+    elif acao == "recusar":
+        solicitacao.status = "recusada"
+        solicitacao.save()
+
+    return redirect("/administracao/#solicitacoes")
 
 
 # ADICIONAR OU REMOVER FAVORITOS

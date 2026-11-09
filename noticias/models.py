@@ -76,7 +76,37 @@ class Leitor(models.Model):
     nome = models.CharField(max_length=100)
     email = models.EmailField(unique=True)
     senha = models.CharField(max_length=128)
+    jornalista = models.BooleanField(default=False)
     data_criacao = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.nome
+
+
+class SolicitacaoJornalista(models.Model):
+    STATUS_CHOICES = [
+        ("pendente", "Aguardando análise"),
+        ("entrevista", "Entrevista marcada"),
+        ("aceita", "Aceita"),
+        ("recusada", "Recusada"),
+    ]
+
+    leitor = models.ForeignKey(
+        Leitor,
+        on_delete=models.CASCADE,
+        related_name="solicitacoes"
+    )
+    capacidades = models.TextField()
+    experiencia = models.TextField(blank=True)
+    curriculo = models.FileField(upload_to="curriculos/")
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="pendente"
+    )
+    data_entrevista = models.DateTimeField(null=True, blank=True)
+    detalhes_entrevista = models.CharField(max_length=250, blank=True)
+    data_criacao = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Solicitação de {self.leitor.nome}"

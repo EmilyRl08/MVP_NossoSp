@@ -132,6 +132,9 @@ img {
     font-weight: normal;
     line-height: 1.1;
     letter-spacing: -1.5px;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    hyphens: auto;
 }
 
 .resumo {
@@ -470,4 +473,33 @@ img {
 .botao-favorito:hover {
     background: var(--verde);
     color: var(--creme);
+}
+
+
+/* MAPA DA LOCALIZAÇÃO DO JORNALISTA */
+
+.mapa-jornalista {
+    margin: 0 0 40px;
+}
+
+.mapa-titulo {
+    margin-bottom: 10px;
+    color: var(--terracota);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 2px;
+}
+
+.mapa-jornalista iframe {
+    display: block;
+    width: 100%;
+    height: 280px;
+    border: 0;
+    border-radius: 4px;
+}
+
+.mapa-endereco {
+    margin-top: 8px;
+    color: var(--cinza);
+    font-size: 11px;
 }

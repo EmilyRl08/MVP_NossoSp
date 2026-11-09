@@ -648,6 +648,56 @@
             color: var(--olive);
         }
 
+        .request-box {
+            padding: 26px;
+            border: 1px solid var(--line);
+            border-radius: 11px;
+            background: white;
+        }
+
+        .request-box form {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: 640px;
+        }
+
+        .request-box label {
+            margin-top: 8px;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .request-box textarea,
+        .request-box input[type="file"] {
+            padding: 12px;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: var(--paper);
+            font-family: inherit;
+            font-size: 13px;
+        }
+
+        .request-box button {
+            align-self: flex-start;
+            margin-top: 14px;
+            cursor: pointer;
+        }
+
+        .request-box p {
+            font-size: 13px;
+            line-height: 1.8;
+        }
+
+        .request-box .request-msg {
+            margin-bottom: 14px;
+            font-weight: 700;
+        }
+
+        .request-box .request-error {
+            color: #A23B2D;
+        }
+
         .empty-state .see-all {
             display: inline-block;
             margin-top: 14px;
@@ -700,6 +750,11 @@
             <a href="#perfil">
                 <span class="menu-icon">◉</span>
                 Meu perfil
+            </a>
+
+            <a href="#jornalista">
+                <span class="menu-icon">✎</span>
+                Ser jornalista
             </a>
         </nav>
 
@@ -964,6 +1019,60 @@
 </section>
 
 
+
+<!-- SER JORNALISTA -->
+<section class="news-section" id="jornalista">
+    <div class="section-heading">
+        <div>
+            <h2>Quero ser jornalista</h2>
+            <p>Envie seu currículo e suas capacidades para a nossa equipe avaliar.</p>
+        </div>
+    </div>
+
+    <div class="request-box">
+
+        {% if solicitacao_enviada %}
+            <p class="request-msg">Solicitação enviada! Em breve nossa equipe entra em contato.</p>
+        {% endif %}
+
+        {% if erro_solicitacao %}
+            <p class="request-msg request-error">{{ erro_solicitacao }}</p>
+        {% endif %}
+
+        {% if solicitacao and solicitacao.status == 'pendente' %}
+            <p>Seu pedido está <strong>aguardando análise</strong>. Assim que o administrador avaliar, a entrevista será marcada aqui.</p>
+
+        {% elif solicitacao and solicitacao.status == 'entrevista' %}
+            <p>
+                Sua <strong>entrevista foi marcada</strong> para
+                <strong>{{ solicitacao.data_entrevista|date:"d/m/Y \à\s H:i" }}</strong>{% if solicitacao.detalhes_entrevista %} — {{ solicitacao.detalhes_entrevista }}{% endif %}.
+            </p>
+
+        {% elif not conta_cadastrada %}
+            <p>Para pedir autorização, entre com uma conta de leitor cadastrada no Nosso SP.</p>
+
+        {% else %}
+            {% if solicitacao and solicitacao.status == 'recusada' %}
+                <p class="request-msg">Seu pedido anterior não foi aceito. Você pode enviar um novo.</p>
+            {% endif %}
+
+            <form method="POST" action="{% url 'solicitar_jornalista' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                <label for="capacidades">Suas capacidades *</label>
+                <textarea id="capacidades" name="capacidades" rows="4" required placeholder="Ex.: apuração, redação, fotografia, cobertura de bairros..."></textarea>
+
+                <label for="experiencia">Experiência (opcional)</label>
+                <textarea id="experiencia" name="experiencia" rows="3" placeholder="Conte onde já atuou ou o que já produziu."></textarea>
+
+                <label for="curriculo">Currículo (PDF, DOC ou DOCX, até 5 MB) *</label>
+                <input type="file" id="curriculo" name="curriculo" accept=".pdf,.doc,.docx" required>
+
+                <button type="submit" class="profile-button">Enviar solicitação</button>
+            </form>
+        {% endif %}
+    </div>
+</section>
 
         <footer class="footer">
             <span><strong>Nosso SP.</strong></span>
