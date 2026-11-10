@@ -196,6 +196,10 @@
                                 <a href="{% url 'noticia' %}?id={{ publicacao.id }}"
                                    class="publication-arrow"
                                    title="Visualizar notícia">↗</a>
+                            {% elif publicacao.status == "rascunho" %}
+                                <a href="{% url 'editar_noticia' publicacao.id %}"
+                                   class="publication-edit"
+                                   title="Abrir rascunho">✎</a>
                             {% endif %}
 
                         </div>

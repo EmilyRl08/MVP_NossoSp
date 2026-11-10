@@ -22,6 +22,8 @@ class Noticia(models.Model):
     resumo = models.TextField()
     categoria = models.CharField(max_length=100)
     local = models.CharField(max_length=150, blank=True)
+    bairro = models.CharField(max_length=100, blank=True, default="")
+    rua = models.CharField(max_length=150, blank=True, default="")
     regiao = models.CharField(
         max_length=50,
         choices=REGIAO_CHOICES,
@@ -96,9 +98,13 @@ class SolicitacaoJornalista(models.Model):
         on_delete=models.CASCADE,
         related_name="solicitacoes"
     )
-    capacidades = models.TextField()
+    nome_completo = models.CharField(max_length=150, blank=True, default="")
+    cpf = models.CharField(max_length=14, blank=True, default="")
+    zona = models.CharField(max_length=50, blank=True, default="")
+    bairro = models.CharField(max_length=100, blank=True, default="")
+    capacidades = models.TextField()  # habilidades do candidato
     experiencia = models.TextField(blank=True)
-    curriculo = models.FileField(upload_to="curriculos/")
+    curriculo = models.FileField(upload_to="curriculos/", blank=True)
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
@@ -110,3 +116,15 @@ class SolicitacaoJornalista(models.Model):
 
     def __str__(self):
         return f"Solicitação de {self.leitor.nome}"
+
+
+class CertificadoSolicitacao(models.Model):
+    solicitacao = models.ForeignKey(
+        SolicitacaoJornalista,
+        on_delete=models.CASCADE,
+        related_name="certificados"
+    )
+    imagem = models.FileField(upload_to="certificados/")
+
+    def __str__(self):
+        return f"Certificado de {self.solicitacao.leitor.nome}"

@@ -26,5 +26,5 @@ class LeitorAdmin(admin.ModelAdmin):
 
 @admin.register(SolicitacaoJornalista)
 class SolicitacaoJornalistaAdmin(admin.ModelAdmin):
-    list_display = ("leitor", "status", "data_entrevista", "data_criacao")
+    list_display = ("nome_completo", "leitor", "zona", "bairro", "status", "data_criacao")
     list_filter = ("status",)

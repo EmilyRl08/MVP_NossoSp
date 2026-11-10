@@ -117,4 +117,4 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Chave da API do Google Maps (Maps Embed API).
 # Cole a sua chave aqui ou defina a variável de ambiente GOOGLE_MAPS_API_KEY.
-GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "COLE_SUA_CHAVE_AQUI")
+GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "02fe3f50f908485f8fa93c8c65619fa5")

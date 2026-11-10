@@ -20,9 +20,7 @@
 
         <nav>
             <a href="{% url 'home' %}">Início</a>
-
             <a href="{% url 'painel' %}">Painel</a>
-
             <a href="{% url 'explorar' %}">Notícias</a>
 
             {% if request.session.usuario_tipo %}
@@ -55,7 +53,6 @@
                 {% if erro %}
                     <p class="form-error">{{ erro }}</p>
                 {% endif %}
-
 
                 <label for="titulo">Título da notícia</label>
                 <input
@@ -101,15 +98,33 @@
                         </select>
                     </div>
 
+                </div>
+
+                <div class="form-row">
+
                     <div>
-                        <label for="local">Bairro / Local da notícia</label>
+                        <label for="bairro">Bairro onde aconteceu</label>
 
                         <input
-                            id="local"
-                            name="local"
+                            id="bairro"
+                            name="bairro"
                             type="text"
                             placeholder="Ex.: Itaquera"
-                            value="{{ dados.local|default:'' }}"
+                            value="{{ dados.bairro|default:'' }}"
+                            required
+                        >
+                    </div>
+
+                    <div>
+                        <label for="rua">Rua / Avenida</label>
+
+                        <input
+                            id="rua"
+                            name="rua"
+                            type="text"
+                            placeholder="Ex.: Avenida Jacu-Pêssego"
+                            value="{{ dados.rua|default:'' }}"
+                            required
                         >
                     </div>
 
@@ -132,15 +147,23 @@
                 </select>
 
                 <label for="foto">Foto da notícia</label>
+
                 <input
                     id="foto"
                     name="foto"
                     type="file"
                     accept="image/jpeg,image/png,image/webp,image/gif"
                 >
-                <img id="fotoPreview" class="foto-preview" alt="Pré-visualização da foto escolhida" hidden>
+
+                <img
+                    id="fotoPreview"
+                    class="foto-preview"
+                    alt="Pré-visualização da foto escolhida"
+                    {% if editando and editando.foto %}src="{{ editando.foto.url }}"{% else %}hidden{% endif %}
+                >
 
                 <label for="imagem">Ou use o endereço de uma imagem (opcional)</label>
+
                 <input
                     id="imagem"
                     name="imagem"
@@ -170,7 +193,9 @@
                 >
 
                 <label for="status">Situação da notícia</label>
+
                 <select id="status" name="status" required>
+
                     <option
                         value="rascunho"
                         {% if not dados or dados.status == "rascunho" %}selected{% endif %}
@@ -184,6 +209,7 @@
                     >
                         Enviar para aprovação
                     </option>
+
                 </select>
 
                 <div class="form-actions">
@@ -224,8 +250,8 @@
                 </div>
 
                 <div class="tip">
-                    <strong>03 — Valorize o território</strong>
-                    <span>Informe o bairro e a região relacionados.</span>
+                    <strong>03 — Identifique o local</strong>
+                    <span>Informe o bairro e a rua para que os leitores encontrem a localização da notícia no mapa.</span>
                 </div>
 
             </aside>
@@ -239,10 +265,12 @@
         const previaFoto = document.getElementById("fotoPreview");
 
         campoFoto.addEventListener("change", function () {
+
             const arquivo = campoFoto.files[0];
 
             if (!arquivo) {
                 previaFoto.hidden = true;
+                previaFoto.removeAttribute("src");
                 return;
             }
 
@@ -250,12 +278,15 @@
                 alert("A imagem deve ter no máximo 5 MB.");
                 campoFoto.value = "";
                 previaFoto.hidden = true;
+                previaFoto.removeAttribute("src");
                 return;
             }
 
             previaFoto.src = URL.createObjectURL(arquivo);
             previaFoto.hidden = false;
+
         });
     </script>
+
 </body>
 </html>

@@ -8,7 +8,10 @@ from django.utils.dateparse import parse_datetime
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
-from .models import Noticia, Comentario, Leitor, SolicitacaoJornalista
+from .models import (
+    Noticia, Comentario, Leitor, SolicitacaoJornalista,
+    CertificadoSolicitacao
+)
 
 EXTENSOES_FOTO = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 TAMANHO_MAXIMO_FOTO = 5 * 1024 * 1024  # 5 MB
@@ -247,6 +250,25 @@ def validar_foto(arquivo):
 
 # CADASTRAR NOTÍCIA — SOMENTE JORNALISTA
 def nova_noticia(request):
+    return formulario_noticia(request, None)
+
+
+# ABRIR E EDITAR RASCUNHO — SOMENTE O JORNALISTA AUTOR
+def editar_noticia(request, id):
+    if not eh_jornalista(request):
+        return redirecionar_painel(request) if usuario_logado(request) else redirect("login")
+
+    publicacao = get_object_or_404(
+        Noticia,
+        id=id,
+        autor_email=request.session.get("usuario_email", ""),
+        status="rascunho"
+    )
+
+    return formulario_noticia(request, publicacao)
+
+
+def formulario_noticia(request, instancia):
     if not eh_jornalista(request):
         return redirecionar_painel(request) if usuario_logado(request) else redirect("login")
 
@@ -273,23 +295,32 @@ def nova_noticia(request):
             erro = validar_foto(foto)
 
         if not erro:
-            noticia_nova = Noticia(
-                titulo=request.POST.get("titulo", "").strip(),
-                resumo=request.POST.get("resumo", "").strip(),
-                categoria=request.POST.get("categoria", "").strip(),
-                local=request.POST.get("local", "").strip(),
-                regiao=regiao,
-                imagem=request.POST.get("imagem", "").strip(),
-                conteudo=request.POST.get("conteudo", "").strip(),
-                tags=request.POST.get("tags", "").strip(),
-                status=status,
+            noticia_salva = instancia or Noticia(
                 autor_email=request.session.get("usuario_email", "")
             )
 
-            if foto:
-                noticia_nova.foto = foto
+            bairro = request.POST.get("bairro", "").strip()
+            rua = request.POST.get("rua", "").strip()
 
-            noticia_nova.save()
+            noticia_salva.titulo = request.POST.get("titulo", "").strip()
+            noticia_salva.resumo = request.POST.get("resumo", "").strip()
+            noticia_salva.categoria = request.POST.get("categoria", "").strip()
+            noticia_salva.bairro = bairro
+            noticia_salva.rua = rua
+            # "local" resume o endereço nos cards (início, explorar).
+            noticia_salva.local = ", ".join(
+                parte for parte in [rua, bairro] if parte
+            )[:150]
+            noticia_salva.regiao = regiao
+            noticia_salva.imagem = request.POST.get("imagem", "").strip()
+            noticia_salva.conteudo = request.POST.get("conteudo", "").strip()
+            noticia_salva.tags = request.POST.get("tags", "").strip()
+            noticia_salva.status = status
+
+            if foto:
+                noticia_salva.foto = foto
+
+            noticia_salva.save()
 
             return redirect("painel")
 
@@ -299,7 +330,8 @@ def nova_noticia(request):
         {
             "regioes": regioes,
             "erro": erro,
-            "dados": request.POST if request.method == "POST" else None,
+            "dados": request.POST if request.method == "POST" else instancia,
+            "editando": instancia,
         }
     )
 
@@ -384,7 +416,7 @@ def administracao(request):
 
     solicitacoes = SolicitacaoJornalista.objects.select_related(
         "leitor"
-    ).order_by("-data_criacao")
+    ).prefetch_related("certificados").order_by("-data_criacao")
 
     solicitacoes_abertas = solicitacoes.filter(
         status__in=["pendente", "entrevista"]
@@ -506,6 +538,7 @@ def portal_leitor(request):
             "solicitacao": solicitacao,
             "erro_solicitacao": request.GET.get("erro_solicitacao", ""),
             "solicitacao_enviada": request.GET.get("solicitacao") == "1",
+            "regioes": Noticia.REGIAO_CHOICES,
         }
     )
 
@@ -536,32 +569,77 @@ def solicitar_jornalista(request):
     ).exists():
         return voltar_com_erro("Você já tem uma solicitação em andamento.")
 
-    capacidades = request.POST.get("capacidades", "").strip()
-    experiencia = request.POST.get("experiencia", "").strip()
-    curriculo = request.FILES.get("curriculo")
+    nome_completo = request.POST.get("nome_completo", "").strip()
+    cpf = request.POST.get("cpf", "").strip()
+    zona = request.POST.get("zona", "").strip()
+    bairro = request.POST.get("bairro", "").strip()
+    habilidades = request.POST.get("capacidades", "").strip()
+    certificados = request.FILES.getlist("certificados")
 
-    if not capacidades:
-        return voltar_com_erro("Descreva suas capacidades.")
+    if not nome_completo:
+        return voltar_com_erro("Informe seu nome completo.")
 
-    if not curriculo:
-        return voltar_com_erro("Anexe o seu currículo.")
+    if not cpf_valido(cpf):
+        return voltar_com_erro("Informe um CPF válido.")
 
-    extensao = os.path.splitext(curriculo.name)[1].lower()
+    if zona not in [valor for valor, nome in Noticia.REGIAO_CHOICES]:
+        return voltar_com_erro("Escolha a zona onde você mora.")
 
-    if extensao not in EXTENSOES_CURRICULO:
-        return voltar_com_erro("O currículo deve ser PDF, DOC ou DOCX.")
+    if not bairro:
+        return voltar_com_erro("Informe o bairro onde você mora.")
 
-    if curriculo.size > TAMANHO_MAXIMO_CURRICULO:
-        return voltar_com_erro("O currículo deve ter no máximo 5 MB.")
+    if not habilidades:
+        return voltar_com_erro("Descreva suas habilidades.")
 
-    SolicitacaoJornalista.objects.create(
+    if not certificados:
+        return voltar_com_erro("Anexe pelo menos uma foto de certificado.")
+
+    if len(certificados) > 10:
+        return voltar_com_erro("Envie no máximo 10 certificados.")
+
+    for arquivo in certificados:
+        erro_foto = validar_foto(arquivo)
+
+        if erro_foto:
+            return voltar_com_erro(f"Certificado inválido: {erro_foto}")
+
+    digitos = "".join(c for c in cpf if c.isdigit())
+    cpf_formatado = f"{digitos[:3]}.{digitos[3:6]}.{digitos[6:9]}-{digitos[9:]}"
+
+    solicitacao = SolicitacaoJornalista.objects.create(
         leitor=leitor,
-        capacidades=capacidades,
-        experiencia=experiencia,
-        curriculo=curriculo
+        nome_completo=nome_completo[:150],
+        cpf=cpf_formatado,
+        zona=zona,
+        bairro=bairro[:100],
+        capacidades=habilidades
     )
 
+    for arquivo in certificados:
+        CertificadoSolicitacao.objects.create(
+            solicitacao=solicitacao,
+            imagem=arquivo
+        )
+
     return redirect("/leitor/?solicitacao=1#jornalista")
+
+
+def cpf_valido(cpf):
+    digitos = [int(c) for c in cpf if c.isdigit()]
+
+    if len(digitos) != 11 or len(set(digitos)) == 1:
+        return False
+
+    for tamanho in (9, 10):
+        soma = sum(
+            digitos[i] * (tamanho + 1 - i) for i in range(tamanho)
+        )
+        digito = (soma * 10) % 11 % 10
+
+        if digito != digitos[tamanho]:
+            return False
+
+    return True
 
 
 # DECIDIR SOLICITAÇÃO DE JORNALISTA — SOMENTE ADMINISTRADOR
@@ -589,7 +667,9 @@ def decidir_solicitacao(request, id, acao):
             solicitacao.status = "entrevista"
             solicitacao.save()
 
-    elif acao == "aceitar" and solicitacao.status == "entrevista":
+    elif acao in ["liberar", "aceitar"] and solicitacao.status in [
+        "pendente", "entrevista"
+    ]:
         solicitacao.status = "aceita"
         solicitacao.save()
 

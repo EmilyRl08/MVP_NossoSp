@@ -205,6 +205,8 @@
                         <div class="publication-actions">
                             {% if publicacao.status == "publicado" %}
                                 <a href="{% url 'noticia' %}?id={{ publicacao.id }}" title="Visualizar">↗</a>
+                            {% elif publicacao.status == "rascunho" %}
+                                <a href="{% url 'editar_noticia' publicacao.id %}" title="Abrir rascunho">✎</a>
                             {% endif %}
                         </div>
 

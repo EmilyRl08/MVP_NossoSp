@@ -1067,3 +1067,21 @@ a {
     font-family: inherit;
     font-size: 12px;
 }
+
+
+/* CERTIFICADOS DO PEDIDO DE JORNALISTA */
+
+.solicitacao-certificados {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.solicitacao-certificados img {
+    width: 110px;
+    height: 80px;
+    object-fit: cover;
+    border: 1px solid rgba(38, 39, 34, 0.2);
+    border-radius: 4px;
+}

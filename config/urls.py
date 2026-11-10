@@ -22,6 +22,7 @@ urlpatterns = [
     path("painel/", views.painel, name="painel"),
     path("nova-noticia/", views.nova_noticia, name="nova_noticia"),
     path("minhas-publicacoes/", views.minhas_publicacoes, name="minhas_publicacoes"),
+    path("editar-noticia/<int:id>/", views.editar_noticia, name="editar_noticia"),
 
     # ADMINISTRADOR
     path("administracao/", views.administracao, name="administracao"),

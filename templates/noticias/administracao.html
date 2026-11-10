@@ -218,7 +218,7 @@
                     <p class="eyebrow">NOVOS JORNALISTAS</p>
                     <h2>Pedidos de jornalista.</h2>
                     <p class="section-description">
-                        Leia o currículo, marque a entrevista e, ao aceitar,
+                        Confira os dados e os certificados e, ao liberar,
                         o perfil do leitor vira jornalista automaticamente.
                         {% if total_solicitacoes %}
                             ({{ total_solicitacoes }} em andamento)
@@ -234,7 +234,7 @@
 
                         <div class="solicitacao-topo">
                             <div>
-                                <h3>{{ s.leitor.nome }}</h3>
+                                <h3>{{ s.nome_completo|default:s.leitor.nome }}</h3>
                                 <span class="publication-date">
                                     {{ s.leitor.email }}
                                     · enviado em {{ s.data_criacao|date:"d/m/Y" }}
@@ -246,15 +246,36 @@
                             </span>
                         </div>
 
-                        <p class="solicitacao-texto"><strong>Capacidades:</strong> {{ s.capacidades|linebreaksbr }}</p>
+                        {% if s.cpf %}
+                            <p class="solicitacao-texto"><strong>CPF:</strong> {{ s.cpf }}</p>
+                        {% endif %}
+
+                        {% if s.zona or s.bairro %}
+                            <p class="solicitacao-texto"><strong>Mora em:</strong> {{ s.zona }}{% if s.zona and s.bairro %} · {% endif %}{{ s.bairro }}</p>
+                        {% endif %}
+
+                        <p class="solicitacao-texto"><strong>Habilidades:</strong> {{ s.capacidades|linebreaksbr }}</p>
 
                         {% if s.experiencia %}
                             <p class="solicitacao-texto"><strong>Experiência:</strong> {{ s.experiencia|linebreaksbr }}</p>
                         {% endif %}
 
-                        <p class="solicitacao-texto">
-                            <a href="{{ s.curriculo.url }}" target="_blank" class="cta-link">Abrir currículo <span>↗</span></a>
-                        </p>
+                        {% if s.certificados.all %}
+                            <p class="solicitacao-texto"><strong>Certificados:</strong></p>
+                            <div class="solicitacao-certificados">
+                                {% for c in s.certificados.all %}
+                                    <a href="{{ c.imagem.url }}" target="_blank" title="Abrir certificado">
+                                        <img src="{{ c.imagem.url }}" alt="Certificado {{ forloop.counter }}">
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        {% if s.curriculo %}
+                            <p class="solicitacao-texto">
+                                <a href="{{ s.curriculo.url }}" target="_blank" class="cta-link">Abrir currículo <span>↗</span></a>
+                            </p>
+                        {% endif %}
 
                         {% if s.data_entrevista %}
                             <p class="solicitacao-texto">
@@ -267,21 +288,10 @@
                         {% if s.status == 'pendente' or s.status == 'entrevista' %}
                             <div class="solicitacao-acoes">
 
-                                <form action="{% url 'decidir_solicitacao' s.id 'entrevista' %}" method="POST" class="solicitacao-form">
+                                <form action="{% url 'decidir_solicitacao' s.id 'liberar' %}" method="POST">
                                     {% csrf_token %}
-                                    <input type="datetime-local" name="data_entrevista" required>
-                                    <input type="text" name="detalhes_entrevista" maxlength="250" placeholder="Local ou link da entrevista">
-                                    <button type="submit" class="action-button action-approve">
-                                        {% if s.status == 'entrevista' %}Remarcar entrevista{% else %}Marcar entrevista{% endif %}
-                                    </button>
+                                    <button type="submit" class="action-button action-approve">Liberar como jornalista</button>
                                 </form>
-
-                                {% if s.status == 'entrevista' %}
-                                    <form action="{% url 'decidir_solicitacao' s.id 'aceitar' %}" method="POST">
-                                        {% csrf_token %}
-                                        <button type="submit" class="action-button action-approve">Aceitar como jornalista</button>
-                                    </form>
-                                {% endif %}
 
                                 <form action="{% url 'decidir_solicitacao' s.id 'recusar' %}" method="POST">
                                     {% csrf_token %}
